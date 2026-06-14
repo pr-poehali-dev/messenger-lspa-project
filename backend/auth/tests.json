@@ -1,0 +1,32 @@
+{
+  "tests": [
+    {
+      "name": "CORS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Create user",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "google_id": "test_google_123",
+        "email": "test@example.com",
+        "name": "Test User",
+        "picture": ""
+      },
+      "expectedStatus": 200,
+      "expectedBody": {"email": "test@example.com"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get user by google_id",
+      "method": "GET",
+      "path": "/?google_id=test_google_123",
+      "expectedStatus": 200,
+      "expectedBody": {"email": "test@example.com"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
