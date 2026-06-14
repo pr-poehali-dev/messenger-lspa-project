@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 type Screen = 'login' | 'app';
 type Tab = 'chats' | 'contacts';
 
-const GOOGLE_CLIENT_ID = '';
+const GOOGLE_CLIENT_ID = '332839074516-c68qp93a0metrimt9kg2f9b42hevea66.apps.googleusercontent.com';
 const NOTIFY_URL = 'https://functions.poehali.dev/9640014f-d57f-46e9-9060-67fb871de37e';
 
 declare global {
