@@ -1,8 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Icon from '@/components/ui/icon';
+import { toast } from '@/hooks/use-toast';
 
 type Screen = 'login' | 'app';
 type Tab = 'chats' | 'contacts';
+
+const GOOGLE_CLIENT_ID = '';
+const NOTIFY_URL = 'https://functions.poehali.dev/9640014f-d57f-46e9-9060-67fb871de37e';
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (cfg: Record<string, unknown>) => void;
+          renderButton: (el: HTMLElement, opts: Record<string, unknown>) => void;
+        };
+      };
+    };
+  }
+}
+
+function decodeJwt(token: string) {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
 
 const CHATS = [
   { id: 1, name: 'Анна Кротова', last: 'Окей, до встречи завтра!', time: '14:32', unread: 2, online: true, initials: 'АК' },
@@ -45,23 +77,78 @@ const Avatar = ({ initials, online, size = 'md' }: { initials: string; online?: 
 );
 
 const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
-  const providers = [
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  const handleCredential = async (response: { credential: string }) => {
+    const profile = decodeJwt(response.credential);
+    if (!profile) {
+      toast({ title: 'Не удалось войти', description: 'Попробуйте ещё раз' });
+      return;
+    }
+    try {
+      await fetch(NOTIFY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profile.name,
+          email: profile.email,
+          picture: profile.picture,
+          provider: 'Google',
+        }),
+      });
+    } catch {
+      /* письмо не критично для входа */
+    }
+    onLogin();
+  };
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    const init = () => {
+      if (!window.google || !googleBtnRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredential,
+      });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        type: 'standard',
+        theme: 'filled_black',
+        size: 'large',
+        shape: 'pill',
+        text: 'signin_with',
+        width: 280,
+      });
+    };
+    if (window.google) init();
+    else {
+      const t = setInterval(() => {
+        if (window.google) {
+          clearInterval(t);
+          init();
+        }
+      }, 200);
+      return () => clearInterval(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const socialProviders = [
     { name: 'Instagram', icon: 'Instagram' },
     { name: 'Telegram', icon: 'Send' },
-    { name: 'Google', icon: 'Chrome' },
   ];
+
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 relative overflow-hidden">
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
       <div className="relative animate-scale-in text-center">
         <div className="w-20 h-20 mx-auto mb-8 rounded-2xl bg-black flex items-center justify-center">
-          <Icon name="MessageСircle" fallback="MessageCircle" size={40} className="text-white" />
+          <Icon name="MessageCircle" size={40} className="text-white" />
         </div>
         <h1 className="font-display text-7xl font-bold tracking-tight text-black mb-3">ЛСПА</h1>
         <p className="text-muted-foreground mb-12 text-lg font-light">Сообщения без лишнего шума</p>
 
-        <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
-          {providers.map((p, i) => (
+        <div className="flex flex-col gap-3 w-full max-w-xs mx-auto items-center">
+          {socialProviders.map((p, i) => (
             <button
               key={p.name}
               onClick={onLogin}
@@ -72,6 +159,19 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
               <span>Войти через {p.name}</span>
             </button>
           ))}
+
+          {GOOGLE_CLIENT_ID ? (
+            <div ref={googleBtnRef} className="animate-fade-in flex justify-center" style={{ animationDelay: '160ms', opacity: 0 }} />
+          ) : (
+            <button
+              onClick={onLogin}
+              style={{ animationDelay: '160ms', opacity: 0 }}
+              className="animate-fade-in group flex items-center justify-center gap-3 w-full py-4 rounded-full border border-black bg-white text-black font-medium transition-all hover:bg-black hover:text-white active:scale-[0.98]"
+            >
+              <Icon name="Chrome" size={20} />
+              <span>Войти через Google</span>
+            </button>
+          )}
         </div>
         <p className="text-xs text-muted-foreground mt-10 max-w-xs mx-auto leading-relaxed">
           Продолжая, вы соглашаетесь с правилами сервиса и политикой конфиденциальности

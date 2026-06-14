@@ -1,0 +1,23 @@
+{
+  "tests": [
+    {
+      "name": "CORS preflight",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200
+    },
+    {
+      "name": "Send login notification",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "name": "Тест Пользователь",
+        "email": "test@gmail.com",
+        "provider": "Google"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {"success": true},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
